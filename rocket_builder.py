@@ -90,7 +90,7 @@ def postprocess(self, detections: torch.Tensor, input_img: Image, visualize: boo
         visualize (bool): If True outputs image with annotations else a list of bounding boxes
     """
     img = np.array(input_img)
-    detections = non_max_suppression(detections.clone().detach(), 80)
+    detections = non_max_suppression(detections.clone().detach(), 80)[0]
 
     # The amount of padding that was added
     pad_x = max(img.shape[0] - img.shape[1], 0) * (416 / max(img.shape))
@@ -101,7 +101,7 @@ def postprocess(self, detections: torch.Tensor, input_img: Image, visualize: boo
     
     list_detections = []
     for detection in detections:
-        x1, y1, x2, y2, conf, cls_conf, cls_pred = detection[0].data.cpu().numpy()
+        x1, y1, x2, y2, conf, cls_conf, cls_pred = detection.data.cpu().numpy()
         # Rescale coordinates to original dimensions
         box_h = ((y2 - y1) / unpad_h) * img.shape[0]
         box_w = ((x2 - x1) / unpad_w) * img.shape[1]
@@ -113,8 +113,8 @@ def postprocess(self, detections: torch.Tensor, input_img: Image, visualize: boo
         img_out = input_img
         ctx = ImageDraw.Draw(img_out, 'RGBA')
         for bbox in list_detections:
-            x1, y1, x2, y2, conf, cls_conf, cls_pred = bbox
-            ctx.rectangle([(x1, y1), (x1 + x2, y1 + y2)], outline=(255, 0, 0, 255), width=2)
+            x1, y1, box_h, box_w, conf, cls_conf, cls_pred = bbox
+            ctx.rectangle([(x1, y1), (x1 + box_w, y1 + box_h)], outline=(255, 0, 0, 255), width=2)
             ctx.text((x1+5, y1+10), text="{}, {:.2f}, {:.2f}".format(self.label_to_class(int(cls_pred)), cls_conf, conf))
         del ctx
         return img_out
