@@ -54,6 +54,7 @@ def preprocess(self, img: Image, labels: list = None) -> torch.Tensor:
     Handles all the necessary steps for preprocessing such as resizing, normalization.
     Works with both single images and list/batch of images. Input image file is expected
     to be a `PIL.Image` object with 3 color channels.
+    Labels must have the following format: `x1, y1, x2, y2, category_id`
 
     Args:
         img (PIL.Image): input image
