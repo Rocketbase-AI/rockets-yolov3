@@ -5,6 +5,7 @@ import torch.nn as nn
 from PIL import Image
 from PIL import ImageDraw
 from skimage.transform import resize
+from torchvision import transforms
 from .utils.utils import *
 
 
@@ -24,7 +25,7 @@ def build() -> nn.Module:
     model.postprocess = types.MethodType(postprocess, model)
     model.preprocess = types.MethodType(preprocess, model)
     model.label_to_class = types.MethodType(label_to_class, model)
-    model.get_loss = types.MethodType(get_loss, model)
+    model.train_forward = types.MethodType(train_forward, model)
     setattr(model, 'classes', classes)
 
     return model
@@ -36,16 +37,18 @@ def label_to_class(self, label: int) -> str:
     return self.classes[label]
 
 
-def get_loss(self):
-    """Returns loss of the model
+def train_forward(self, x: torch.Tensor, targets: torch.Tensor):
+    """Performs forward pass and returns loss of the model
+
+    The loss can be directly fed into an optimizer.
     """
-    assert self.loss is not None, "You need to make a `training` forward pass first"
+    self.forward(x, targets)
     loss = self.loss
     self.loss = None
     return loss
 
 
-def preprocess(self, img: Image) -> torch.Tensor:
+def preprocess(self, img: Image, labels: list = None) -> torch.Tensor:
     """Converts PIL Image or Array into pytorch tensor specific to this model
 
     Handles all the necessary steps for preprocessing such as resizing, normalization.
@@ -53,18 +56,38 @@ def preprocess(self, img: Image) -> torch.Tensor:
     to be a `PIL.Image` object with 3 color channels.
 
     Args:
-        x (list or PIL.Image): input image or list of images.
+        img (PIL.Image): input image
+        labels (list): list of bounding boxes and class labels
     """
-    # Extract image
-    img = np.array(img)
-    h, w, _ = img.shape
+
+    # todo: support batch size bigger than 1 for training and inference
+    # todo: replace this hacky solution and work directly with tensors
+    if type(img) == Image.Image:
+        # PIL.Image
+        # Extract image
+        img = np.array(img)
+    elif type(img) == torch.Tensor:
+        # list of tensors
+        img = img[0].cpu()
+        img = transforms.ToPILImage()(img)
+        img = np.array(img)
+    elif "PIL" in str(type(img)): # type if file just has been opened
+        img = np.array(img.convert("RGB"))
+    else:
+        raise TypeError("wrong input type: got {} but expected list of PIL.Image, "
+                        "single PIL.Image or torch.Tensor".format(type(img)))
+
+    h, w, c = img.shape
     dim_diff = np.abs(h - w)
     # Upper (left) and lower (right) padding
     pad1, pad2 = dim_diff // 2, dim_diff - dim_diff // 2
+
     # Determine padding
     pad = ((pad1, pad2), (0, 0), (0, 0)) if h <= w else ((0, 0), (pad1, pad2), (0, 0))
     # Add padding
-    input_img = np.pad(img, pad, 'constant', constant_values=127.5) / 255.
+    input_img = np.pad(img, pad, 'constant', constant_values=128) / 255.
+    padded_h, padded_w, _ = input_img.shape
+
     # Resize and normalize
     input_img = resize(input_img, (416, 416, 3), mode='reflect')
     # Channels-first
@@ -72,10 +95,46 @@ def preprocess(self, img: Image) -> torch.Tensor:
     # As pytorch tensor
     input_img = torch.from_numpy(input_img).float()
 
-    return input_img.unsqueeze(0)
+    # check if labels is empty --> we don't train but can return image tensor here
+    if labels is None:
+        return input_img.unsqueeze(0)
+
+    max_objects = 50
+    filled_labels = np.zeros((max_objects, 5))  # max objects in an image for training=50, 5=(x1,y1,x2,y2,category_id)
+    if labels is not None:
+        for idx, label in enumerate(labels):
+
+            # add padding
+            label[0] += pad[1][0]
+            label[1] += pad[0][0]
+
+            # resize coordinates to match Yolov3 input size
+            scale_x = 416.0 / padded_w
+            scale_y = 416.0 / padded_h
+
+            label[0] *= scale_x
+            label[1] *= scale_y
+            label[2] *= scale_x
+            label[3] *= scale_y
+
+            x1 = label[0] / 416.0
+            y1 = label[1] / 416.0
+
+            cw = (label[2]) / 416.0
+            ch = (label[3]) / 416.0
+
+            cx = (x1 + (x1 + cw)) / 2.0
+            cy = (y1 + (y1 + ch)) / 2.0
+
+            filled_labels[idx] = np.asarray([label[4], cx, cy, cw, ch])
+            if idx >= max_objects:
+                break
+    filled_labels = torch.from_numpy(filled_labels)
+
+    return input_img.unsqueeze(0), filled_labels.unsqueeze(0)
 
 
-def postprocess(self, detections: torch.Tensor, input_img: Image, visualize: bool=False):
+def postprocess(self, detections: torch.Tensor, input_img: Image, visualize: bool = False):
     """Converts pytorch tensor into interpretable format
 
     Handles all the steps for postprocessing of the raw output of the model.
@@ -98,7 +157,7 @@ def postprocess(self, detections: torch.Tensor, input_img: Image, visualize: boo
     # Image height and width after padding is removed
     unpad_h = 416 - pad_y
     unpad_w = 416 - pad_x
-    
+
     list_detections = []
     for detection in detections:
         x1, y1, x2, y2, conf, cls_conf, cls_pred = detection.data.cpu().numpy()
@@ -115,7 +174,8 @@ def postprocess(self, detections: torch.Tensor, input_img: Image, visualize: boo
         for bbox in list_detections:
             x1, y1, box_h, box_w, conf, cls_conf, cls_pred = bbox
             ctx.rectangle([(x1, y1), (x1 + box_w, y1 + box_h)], outline=(255, 0, 0, 255), width=2)
-            ctx.text((x1+5, y1+10), text="{}, {:.2f}, {:.2f}".format(self.label_to_class(int(cls_pred)), cls_conf, conf))
+            ctx.text((x1 + 5, y1 + 10),
+                     text="{}, {:.2f}, {:.2f}".format(self.label_to_class(int(cls_pred)), cls_conf, conf))
         del ctx
         return img_out
 
@@ -147,7 +207,7 @@ def non_max_suppression(prediction, num_classes, conf_thres=0.5, nms_thres=0.4):
         if not image_pred.size(0):
             continue
         # Get score and class with highest confidence
-        class_conf, class_pred = torch.max(image_pred[:, 5 : 5 + num_classes], 1, keepdim=True)
+        class_conf, class_pred = torch.max(image_pred[:, 5: 5 + num_classes], 1, keepdim=True)
         # Detections ordered as (x1, y1, x2, y2, obj_conf, class_conf, class_pred)
         detections = torch.cat((image_pred[:, :5], class_conf.float(), class_pred.float()), 1)
         # Iterate through all predicted classes
