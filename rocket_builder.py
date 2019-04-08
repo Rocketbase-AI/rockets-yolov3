@@ -134,6 +134,15 @@ def preprocess(self, img: Image, labels: list = None) -> torch.Tensor:
 
     return input_img.unsqueeze(0), filled_labels.unsqueeze(0)
 
+def clamp(n, minn, maxn):
+    """Make sure n is between minn and maxn
+
+    Args:
+        n (number): Number to clamp
+        minn (number): minimum number allowed
+        maxn (number): maximum number allowed
+    """
+    return max(min(maxn, n), minn)
 
 def postprocess(self, detections: torch.Tensor, input_img: Image, visualize: bool = False):
     """Converts pytorch tensor into interpretable format
@@ -150,11 +159,13 @@ def postprocess(self, detections: torch.Tensor, input_img: Image, visualize: boo
         visualize (bool): If True outputs image with annotations else a list of bounding boxes
     """
     img = np.array(input_img)
+    img_height, img_width, _ =  img.shape
+
     detections = non_max_suppression(detections.clone().detach(), 80)[0]
 
     # The amount of padding that was added
-    pad_x = max(img.shape[0] - img.shape[1], 0) * (416 / max(img.shape))
-    pad_y = max(img.shape[1] - img.shape[0], 0) * (416 / max(img.shape))
+    pad_x = max(img_height - img_width, 0) * (416 / max(img.shape))
+    pad_y = max(img_width - img_height, 0) * (416 / max(img.shape))
     # Image height and width after padding is removed
     unpad_h = 416 - pad_y
     unpad_w = 416 - pad_x
@@ -163,20 +174,52 @@ def postprocess(self, detections: torch.Tensor, input_img: Image, visualize: boo
     for detection in detections:
         x1, y1, x2, y2, conf, cls_conf, cls_pred = detection.data.cpu().numpy()
         # Rescale coordinates to original dimensions
-        box_h = ((y2 - y1) / unpad_h) * img.shape[0]
-        box_w = ((x2 - x1) / unpad_w) * img.shape[1]
-        y1 = ((y1 - pad_y // 2) / unpad_h) * img.shape[0]
-        x1 = ((x1 - pad_x // 2) / unpad_w) * img.shape[1]
-        list_detections.append((x1, y1, box_h, box_w, conf, cls_conf, cls_pred))
+        x1 = ((x1 - pad_x // 2) / unpad_w) * img_width
+        y1 = ((y1 - pad_y // 2) / unpad_h) * img_height
+
+        x2 = ((x2 - pad_x // 2) / unpad_w) * img_width
+        y2 = ((y2 - pad_y // 2) / unpad_h) * img_height
+        
+        # Standardize the output
+        topLeft_x = int(clamp(round(x1), 0, img_width))
+        topLeft_y = int(clamp(round(y1), 0, img_height))
+
+        bottomRight_x = int(clamp(round(x2), 0, img_width))
+        bottomRight_y = int(clamp(round(y2), 0, img_height))
+
+        width = abs(bottomRight_x - topLeft_x) + 1
+        height = abs(bottomRight_y - topLeft_y) + 1
+
+        bbox_confidence = clamp(conf, 0, 1)
+
+        class_name = str(self.label_to_class(int(cls_pred)))
+        class_confidence = clamp(cls_conf, 0, 1)
+
+        list_detections.append({
+                'topLeft_x': topLeft_x,
+                'topLeft_y': topLeft_y,
+                'width': width,
+                'height': height,
+                'bbox_confidence': bbox_confidence,
+                'class_name': class_name,
+                'class_confidence': class_confidence})
 
     if visualize:
+        line_width = 2
         img_out = input_img
         ctx = ImageDraw.Draw(img_out, 'RGBA')
-        for bbox in list_detections:
-            x1, y1, box_h, box_w, conf, cls_conf, cls_pred = bbox
-            ctx.rectangle([(x1, y1), (x1 + box_w, y1 + box_h)], outline=(255, 0, 0, 255), width=2)
-            ctx.text((x1 + 5, y1 + 10),
-                     text="{}, {:.2f}, {:.2f}".format(self.label_to_class(int(cls_pred)), cls_conf, conf))
+        for detection in list_detections:
+            # Extract information from the detection
+            topLeft = (detection['topLeft_x'], detection['topLeft_y'])
+            bottomRight = (detection['topLeft_x'] + detection['width'] - line_width, detection['topLeft_y'] + detection['height']- line_width)
+            class_name = detection['class_name']
+            bbox_confidence = detection['bbox_confidence']
+            class_confidence = detection['class_confidence']
+
+            # Draw the bounding boxes and the information related to it
+            ctx.rectangle([topLeft, bottomRight], outline=(255, 0, 0, 255), width=line_width)
+            ctx.text((topLeft[0] + 5, topLeft[1] + 10), text="{}, {:.2f}, {:.2f}".format(class_name, bbox_confidence, class_confidence))
+
         del ctx
         return img_out
 
