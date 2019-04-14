@@ -1,12 +1,14 @@
 import os
-from .models import Darknet
+# from .models import Darknet
 import types
+import torch
 import torch.nn as nn
 from PIL import Image
 from PIL import ImageDraw
 from skimage.transform import resize
 from torchvision import transforms
-from .utils.utils import *
+# from .utils.utils import *
+import numpy as np
 
 
 def build() -> nn.Module:
@@ -48,7 +50,7 @@ def train_forward(self, x: torch.Tensor, targets: torch.Tensor):
     return loss
 
 
-def preprocess(self, img: Image, labels: list = None) -> torch.Tensor:
+def preprocess(img: Image, labels: list = None) -> torch.Tensor:
     """Converts PIL Image or Array into pytorch tensor specific to this model
 
     Handles all the necessary steps for preprocessing such as resizing, normalization.
