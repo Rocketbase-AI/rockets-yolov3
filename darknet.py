@@ -1,6 +1,20 @@
 import torch
 import torch.nn as nn
 
+class UpSample(nn.Module):
+    """
+    UpSample
+    """
+
+    def __init__(self, scale_factor: int = 2, mode: str = 'nearest'):
+        super(UpSample, self).__init__()
+
+        self.scale_factor = scale_factor
+        self.mode = mode
+        
+    def forward(self, x):
+        return torch.nn.functional.interpolate(x, mode = self.mode, scale_factor = self.scale_factor)
+
 class ConvBlock(nn.Module):
     """
     Convolution Block
@@ -219,7 +233,7 @@ class YOLOv3(nn.Module):
         # Upsample Block 1
         layers = [
             ConvBlock(1024, 256, 1),
-            nn.Upsample(scale_factor=2, mode="nearest")
+            UpSample(scale_factor=2, mode="nearest")
         ]
 
         self.upSampleBlock1 = nn.Sequential(*layers)
@@ -240,7 +254,7 @@ class YOLOv3(nn.Module):
         # Upsample Block 2
         layers = [
             ConvBlock(512, 128, 1),
-            nn.Upsample(scale_factor=2, mode="nearest")
+            UpSample(scale_factor=2, mode="nearest")
         ]
 
         self.upSampleBlock2 = nn.Sequential(*layers)

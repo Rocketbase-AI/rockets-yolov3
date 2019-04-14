@@ -20,11 +20,12 @@ model.eval()
 print('Using the rocket to do object detection on \'' + image_path + '\'...')
 with torch.no_grad():
     img_tensor = preprocess(img)
-    print(img_tensor.shape)
+    print('img_tensor.shape:', img_tensor.shape)
     out = model(img_tensor)
 
 print('Object Detection successful! ')
 
+print('out.shape:', out.shape)
 print(out)
 # --- OUTPUT ---
 # Print the output as a JSON
