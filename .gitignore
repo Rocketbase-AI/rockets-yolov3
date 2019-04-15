@@ -1,2 +1,3 @@
-weights.pth
+weights*
 __pycache__
+*.jpg

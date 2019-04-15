@@ -1,14 +1,12 @@
 import os
-# from .models import Darknet
+from .yolov3 import YOLOv3
 import types
-import torch
 import torch.nn as nn
 from PIL import Image
 from PIL import ImageDraw
 from skimage.transform import resize
 from torchvision import transforms
-# from .utils.utils import *
-import numpy as np
+from .utils.utils import *
 
 
 def build() -> nn.Module:
@@ -19,8 +17,8 @@ def build() -> nn.Module:
     and simplify interchangeability of different models.
     """
     # Set up model
-    model = Darknet(os.path.join(os.path.realpath(os.path.dirname(__file__)), "yolov3.cfg"))
-    model.load_weights(os.path.join(os.path.realpath(os.path.dirname(__file__)), "weights.pth"))
+    model = YOLOv3()
+    model.load_state_dict(torch.load(os.path.join(os.path.realpath(os.path.dirname(__file__)), "weights.pth")), strict=True)
 
     classes = load_classes(os.path.join(os.path.realpath(os.path.dirname(__file__)), "coco.data"))
 
@@ -50,7 +48,7 @@ def train_forward(self, x: torch.Tensor, targets: torch.Tensor):
     return loss
 
 
-def preprocess(img: Image, labels: list = None) -> torch.Tensor:
+def preprocess(self, img: Image, labels: list = None) -> torch.Tensor:
     """Converts PIL Image or Array into pytorch tensor specific to this model
 
     Handles all the necessary steps for preprocessing such as resizing, normalization.

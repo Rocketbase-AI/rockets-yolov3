@@ -22,7 +22,7 @@ class ConvBlock(nn.Module):
 
     def __init__(self, in_channels: int, out_channels: int, kernel_size: int, stride: int = 1, use_padding: bool = True, batch_normalize: bool = True):
         super(ConvBlock, self).__init__()
-        
+    
         # Define Padding
         # TODO Check that this is necessary
         padding = (kernel_size - 1) // 2 if use_padding else 0
@@ -82,8 +82,9 @@ class YOLOBlock(nn.Module):
 
         detection_out = self.num_anchors * (5 + self.num_classes)
 
+        self.conv1 = ConvBlock(in_channels, mid_channels, kernel_size_1, stride = stride, use_padding = use_padding, batch_normalize = batch_normalize)
+
         layers = [
-            ConvBlock(in_channels, mid_channels, kernel_size_1, stride = stride, use_padding = use_padding, batch_normalize = batch_normalize),
             ConvBlock(mid_channels, out_channels, kernel_size_2, stride = stride, use_padding = use_padding, batch_normalize = batch_normalize),
             nn.Conv2d(out_channels, detection_out, kernel_size = 1)
         ]
@@ -91,8 +92,9 @@ class YOLOBlock(nn.Module):
         self.block = nn.Sequential(*layers)
 
     def forward(self, x):
+        out_1 = self.conv1(x)
 
-        out = self.block(x)
+        out = self.block(out_1)
 
         nA = self.num_anchors
         nB = out.size(0)
@@ -135,7 +137,7 @@ class YOLOBlock(nn.Module):
                 -1,
             )
 
-        return output
+        return out_1, output
 
 class Darknet53(nn.Module):
     """ Darknet53 block
@@ -207,96 +209,3 @@ class Darknet53(nn.Module):
         out_74 = self.block_62to74(out_61)
         
         return out_36, out_61, out_74
-
-class YOLOv3(nn.Module):
-    def __init__(self, img_size: int = 416, num_anchors: int = 9, num_classes: int = 80):
-        super(YOLOv3, self).__init__()
-        
-        self.anchors = [[10,13], [16,30], [33,23], [30,61], [62,45], [59,119], [116,90], [156,198], [373,326]]
-
-        # Feature extractor Darknet53
-        self.darknet53 = Darknet53(img_size)
-
-        # 4 layers before first YOLOBlock
-        layers = [
-            ConvBlock(1024, 512, 1),
-            ConvBlock(512, 1024, 3),
-            ConvBlock(1024, 512, 1),
-            ConvBlock(512, 1024, 3)
-        ]
-
-        self.block_75to78 = nn.Sequential(*layers)
-
-        # YOLOBlock 1
-        self.yoloBlock1 = YOLOBlock(1024, 512, 1024, self.anchors[:3], num_classes, img_size)
-
-        # Upsample Block 1
-        layers = [
-            ConvBlock(1024, 256, 1),
-            UpSample(scale_factor=2, mode="nearest")
-        ]
-
-        self.upSampleBlock1 = nn.Sequential(*layers)
-
-        # 4 layers before first YOLOBlock
-        layers = [
-            ConvBlock(768, 256, 1), # in_channels = sum(512 + 256)
-            ConvBlock(256, 512, 3),
-            ConvBlock(512, 256, 1),
-            ConvBlock(256, 512, 3)
-        ]
-
-        self.block_87to90 = nn.Sequential(*layers)
-
-        # YOLOBlock 2
-        self.yoloBlock2 = YOLOBlock(512, 256, 512, self.anchors[3:6], num_classes, img_size)
-
-        # Upsample Block 2
-        layers = [
-            ConvBlock(512, 128, 1),
-            UpSample(scale_factor=2, mode="nearest")
-        ]
-
-        self.upSampleBlock2 = nn.Sequential(*layers)
-
-        # 4 layers before the 2nd YoloBlock
-        layers = [
-            ConvBlock(384, 128, 1), # in_channels = sum(256 + 128)
-            ConvBlock(128, 256, 3),
-            ConvBlock(256, 128, 1),
-            ConvBlock(128, 256, 3)
-        ]
-
-        self.block_99to102 = nn.Sequential(*layers)
-
-        # YOLOBlock 3
-        self.yoloBlock3 = YOLOBlock(256, 128, 256, self.anchors[6:], num_classes, img_size)
-
-
-    def forward(self, x):
-        out_36, out_61, out_74 = self.darknet53(x)
-        out_78 = self.block_75to78(out_74)
-
-        out_yolo1 = self.yoloBlock1(out_78)
-
-        out_up1 = self.upSampleBlock1(out_78)
-        out_concat1 = torch.cat([out_up1, out_61], 1)
-        print("out_concat1:", out_concat1.shape)
-        out_90 = self.block_87to90(out_concat1)
-        print("out_90:", out_90.shape)
-
-        out_yolo2 = self.yoloBlock2(out_90)
-        print("out_yolo2:", out_yolo2.shape)
-
-        out_up2 = self.upSampleBlock2(out_90)
-        out_concat2 = torch.cat([out_up2, out_36], 1)
-        print("out_concat2:", out_concat2.shape)
-        out_102 = self.block_99to102(out_concat2)
-
-        out_yolo3 = self.yoloBlock3(out_102)
-        
-        # Concatenate the output of the model before returning it
-        out = torch.cat([out_yolo1, out_yolo2, out_yolo3], 1)
-        
-        return out
-
