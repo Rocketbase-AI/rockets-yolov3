@@ -194,14 +194,6 @@ class Darknet53(nn.Module):
 
         self.block_62to74 = nn.Sequential(*layers) 
 
-
-        # self.module_defs = parse_model_config(config_path)
-        # self.hyperparams, self.module_list = create_modules(self.module_defs)
-        # self.img_size = img_size
-        # self.seen = 0
-        # self.header_info = np.array([0, 0, 0, self.seen, 0])
-        # self.loss_names = ["x", "y", "w", "h", "conf", "cls", "recall", "precision"]
-
     def forward(self, x):
         # Rewrite Darknet 53 to also output the output of the layer 36 and 61
         out_36 = self.block_0to36(x)
