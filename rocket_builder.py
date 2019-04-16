@@ -6,7 +6,9 @@ from PIL import Image
 from PIL import ImageDraw
 from skimage.transform import resize
 from torchvision import transforms
-from .utils.utils import *
+from .utilsOld.utils import *
+
+from .utils import importConfig
 
 
 def build() -> nn.Module:
@@ -16,8 +18,11 @@ def build() -> nn.Module:
     for `preprocessing`, `postprocessing`, `label_to_class` have been added to ease handling of the model
     and simplify interchangeability of different models.
     """
+    # Load config
+    config = importConfig('./config.json')
+
     # Set up model
-    model = YOLOv3()
+    model = YOLOv3(config['img_size'], config['num_classes'], config['anchors'])
     model.load_state_dict(torch.load(os.path.join(os.path.realpath(os.path.dirname(__file__)), "weights.pth")), strict=True)
 
     classes = load_classes(os.path.join(os.path.realpath(os.path.dirname(__file__)), "coco.data"))
