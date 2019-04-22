@@ -168,6 +168,10 @@ def postprocess(self, detections: torch.Tensor, input_img: Image, visualize: boo
 
     detections = non_max_suppression(detections.clone().detach(), 80)[0]
 
+    # In case there is no detection
+    if detections is None:
+        detections = []
+
     # The amount of padding that was added
     pad_x = max(img_height - img_width, 0) * (416 / max(img.shape))
     pad_y = max(img_width - img_height, 0) * (416 / max(img.shape))
