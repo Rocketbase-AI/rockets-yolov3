@@ -4,11 +4,8 @@ import types
 import torch.nn as nn
 from PIL import Image
 from PIL import ImageDraw
-from skimage.transform import resize
 from torchvision import transforms
-from .utilsOld.utils import *
-
-from .utils import importConfig
+from .utils.utils import *
 
 
 def build() -> nn.Module:
@@ -18,11 +15,8 @@ def build() -> nn.Module:
     for `preprocessing`, `postprocessing`, `label_to_class` have been added to ease handling of the model
     and simplify interchangeability of different models.
     """
-    # Load config
-    config = importConfig('./config.json')
-
     # Set up model
-    model = YOLOv3(config['img_size'], config['num_classes'], config['anchors'])
+    model = YOLOv3()
     model.load_state_dict(torch.load(os.path.join(os.path.realpath(os.path.dirname(__file__)), "weights.pth")), strict=True)
 
     classes = load_classes(os.path.join(os.path.realpath(os.path.dirname(__file__)), "coco.data"))
@@ -95,7 +89,11 @@ def preprocess(self, img: Image, labels: list = None) -> torch.Tensor:
     padded_h, padded_w, _ = input_img.shape
 
     # Resize and normalize
-    input_img = resize(input_img, (416, 416, 3), mode='reflect')
+    input_img = Image.fromarray(np.uint8(input_img*255), 'RGB')
+    input_img.thumbnail((416, 416), resample=Image.BICUBIC)
+    input_img = np.array(input_img)
+    input_img = input_img / 255.0
+
     # Channels-first
     input_img = np.transpose(input_img, (2, 0, 1))
     # As pytorch tensor
@@ -168,7 +166,7 @@ def postprocess(self, detections: torch.Tensor, input_img: Image, visualize: boo
 
     detections = non_max_suppression(detections.clone().detach(), 80)[0]
 
-    # In case there is no detection
+    # In case no detection is made on the image
     if detections is None:
         detections = []
 

@@ -3,13 +3,11 @@ import torch.nn as nn
 from .layers import ConvBlock, Darknet53, YOLOBlock, UpSample
 
 class YOLOv3(nn.Module):
-    def __init__(self, img_size: int = 416, num_classes: int = 80, anchors: list = [[373, 326], [156, 198], [116, 90], [62, 45], [59, 119], [33, 23], [30, 61], [16, 30], [10, 13]]):
+    def __init__(self, img_size: int = 416, num_anchors: int = 9, num_classes: int = 80):
         super(YOLOv3, self).__init__()
         
-        self.img_size = img_size
-        self.num_classes = num_classes
-        self.anchors = anchors
-        
+        self.anchors = [[10,13], [16,30], [33,23], [30,61], [62,45], [59,119], [116,90], [156,198], [373,326]]
+
         # Feature extractor Darknet53
         self.darknet53 = Darknet53(img_size)
 
@@ -24,7 +22,7 @@ class YOLOv3(nn.Module):
         self.block_75to78 = nn.Sequential(*layers)
 
         # YOLOBlock 1
-        self.yoloBlock1 = YOLOBlock(1024, 512, 1024, self.anchors[:3], self.num_classes, self.img_size)
+        self.yoloBlock1 = YOLOBlock(1024, 512, 1024, self.anchors[6:], num_classes, img_size)
 
         # Upsample Block 1
         layers = [
@@ -45,7 +43,7 @@ class YOLOv3(nn.Module):
         self.block_87to90 = nn.Sequential(*layers)
 
         # YOLOBlock 2
-        self.yoloBlock2 = YOLOBlock(512, 256, 512, self.anchors[3:6], self.num_classes, self.img_size)
+        self.yoloBlock2 = YOLOBlock(512, 256, 512, self.anchors[3:6], num_classes, img_size)
 
         # Upsample Block 2
         layers = [
@@ -66,7 +64,7 @@ class YOLOv3(nn.Module):
         self.block_99to102 = nn.Sequential(*layers)
 
         # YOLOBlock 3
-        self.yoloBlock3 = YOLOBlock(256, 128, 256, self.anchors[6:], self.num_classes, self.img_size)
+        self.yoloBlock3 = YOLOBlock(256, 128, 256, self.anchors[:3], num_classes, img_size)
 
 
     def forward(self, x):

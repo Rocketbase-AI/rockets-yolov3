@@ -1,3 +1,5 @@
 weights*
 __pycache__
 *.jpg
+.vscode
+.ipynb*
