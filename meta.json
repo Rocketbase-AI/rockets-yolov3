@@ -1,0 +1,6 @@
+{
+    "author": "lucas",
+    "model": "yolov3",
+    "dataset": "COCO",
+    "trainable": false
+}

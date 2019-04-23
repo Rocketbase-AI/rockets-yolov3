@@ -1,27 +1,41 @@
 import os
-from .models import Darknet
+from .yolov3 import YOLOv3
 import types
 import torch.nn as nn
 from PIL import Image
 from PIL import ImageDraw
-from skimage.transform import resize
 from torchvision import transforms
-from .utils.utils import *
+from .utils import *
+import numpy as np
+import json
 
 
-def build() -> nn.Module:
+def build(config_path: str = '') -> nn.Module:
     """Builds a pytorch compatible deep learning model
 
     The model can be used as any other pytorch model. Additional methods
     for `preprocessing`, `postprocessing`, `label_to_class` have been added to ease handling of the model
     and simplify interchangeability of different models.
     """
+    # Load Config file
+    if not config_path: # If no config path then load default one
+        config_path = os.path.join(os.path.realpath(os.path.dirname(__file__)), "config.json")
+
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+    
+    # Load the classes
+    classes_path = os.path.join(os.path.realpath(os.path.dirname(__file__)), config['classes_path'])
+    
+    with open(classes_path, 'r') as f:
+        classes =  json.load(f)
+
     # Set up model
-    model = Darknet(os.path.join(os.path.realpath(os.path.dirname(__file__)), "yolov3.cfg"))
-    model.load_weights(os.path.join(os.path.realpath(os.path.dirname(__file__)), "weights.pth"))
+    model = YOLOv3(config['input_size'], config['anchors'], classes)
+    weights_path = os.path.join(os.path.realpath(os.path.dirname(__file__)), config['weights_path'])
+    model.load_state_dict(torch.load(weights_path), strict=True)
 
-    classes = load_classes(os.path.join(os.path.realpath(os.path.dirname(__file__)), "coco.data"))
-
+    
     model.postprocess = types.MethodType(postprocess, model)
     model.preprocess = types.MethodType(preprocess, model)
     model.label_to_class = types.MethodType(label_to_class, model)
@@ -34,7 +48,7 @@ def build() -> nn.Module:
 def label_to_class(self, label: int) -> str:
     """Returns string of class name given index
     """
-    return self.classes[label]
+    return self.classes[str(label)]
 
 
 def train_forward(self, x: torch.Tensor, targets: torch.Tensor):
@@ -90,7 +104,11 @@ def preprocess(self, img: Image, labels: list = None) -> torch.Tensor:
     padded_h, padded_w, _ = input_img.shape
 
     # Resize and normalize
-    input_img = resize(input_img, (416, 416, 3), mode='reflect')
+    input_img = Image.fromarray(np.uint8(input_img*255), 'RGB')
+    input_img.thumbnail((416, 416), resample=Image.BICUBIC)
+    input_img = np.array(input_img)
+    input_img = input_img / 255.0
+
     # Channels-first
     input_img = np.transpose(input_img, (2, 0, 1))
     # As pytorch tensor
@@ -162,6 +180,10 @@ def postprocess(self, detections: torch.Tensor, input_img: Image, visualize: boo
     img_height, img_width, _ =  img.shape
 
     detections = non_max_suppression(detections.clone().detach(), 80)[0]
+
+    # In case no detection is made on the image
+    if detections is None:
+        detections = []
 
     # The amount of padding that was added
     pad_x = max(img_height - img_width, 0) * (416 / max(img.shape))
