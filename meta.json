@@ -3,5 +3,15 @@
     "name": "yolov3",
     "version": "25d2d19f",
     "trained_on": "COCO",
-    "trainable": false
+    "trainable": false,
+    "blueprint": [
+        "__init__.py",
+        "classes.json",
+        "config.json",
+        "layers.py",
+        "meta.json",
+        "rocket_builder.py",
+        "utils.py",
+        "model.py"
+        ]
 }

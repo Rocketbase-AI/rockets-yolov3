@@ -1,5 +1,5 @@
 import os
-from .yolov3 import YOLOv3
+from .model import YOLOv3
 import types
 import torch.nn as nn
 from PIL import Image
