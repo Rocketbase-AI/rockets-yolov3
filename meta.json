@@ -2,6 +2,7 @@
     "author": "lucas",
     "name": "yolov3",
     "version": "25d2d19f",
+    "family": "detection",
     "trained_on": "COCO",
     "trainable": false,
     "blueprint": [
