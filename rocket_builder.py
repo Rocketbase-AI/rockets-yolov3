@@ -5,22 +5,37 @@ import torch.nn as nn
 from PIL import Image
 from PIL import ImageDraw
 from torchvision import transforms
-from .utils.utils import *
+from .utils import *
+import numpy as np
+import json
 
 
-def build() -> nn.Module:
+def build(config_path: str = '') -> nn.Module:
     """Builds a pytorch compatible deep learning model
 
     The model can be used as any other pytorch model. Additional methods
     for `preprocessing`, `postprocessing`, `label_to_class` have been added to ease handling of the model
     and simplify interchangeability of different models.
     """
+    # Load Config file
+    if not config_path: # If no config path then load default one
+        config_path = os.path.join(os.path.realpath(os.path.dirname(__file__)), "config.json")
+
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+    
+    # Load the classes
+    classes_path = os.path.join(os.path.realpath(os.path.dirname(__file__)), config['classes_path'])
+    
+    with open(classes_path, 'r') as f:
+        classes =  json.load(f)
+
     # Set up model
-    model = YOLOv3()
-    model.load_state_dict(torch.load(os.path.join(os.path.realpath(os.path.dirname(__file__)), "weights.pth")), strict=True)
+    model = YOLOv3(config['input_size'], config['anchors'], classes)
+    weights_path = os.path.join(os.path.realpath(os.path.dirname(__file__)), config['weights_path'])
+    model.load_state_dict(torch.load(weights_path), strict=True)
 
-    classes = load_classes(os.path.join(os.path.realpath(os.path.dirname(__file__)), "coco.data"))
-
+    
     model.postprocess = types.MethodType(postprocess, model)
     model.preprocess = types.MethodType(preprocess, model)
     model.label_to_class = types.MethodType(label_to_class, model)
@@ -33,7 +48,7 @@ def build() -> nn.Module:
 def label_to_class(self, label: int) -> str:
     """Returns string of class name given index
     """
-    return self.classes[label]
+    return self.classes[str(label)]
 
 
 def train_forward(self, x: torch.Tensor, targets: torch.Tensor):
