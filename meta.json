@@ -1,6 +1,7 @@
 {
     "author": "lucas",
-    "model": "yolov3",
-    "dataset": "COCO",
+    "name": "yolov3",
+    "version": "25d2d19f",
+    "trained_on": "COCO",
     "trainable": false
 }
