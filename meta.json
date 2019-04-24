@@ -1,5 +1,5 @@
 {
-    "author": "lucas",
+    "builder": "lucas",
     "name": "yolov3",
     "version": "25d2d19f",
     "family": "detection",
@@ -13,6 +13,7 @@
         "meta.json",
         "rocket_builder.py",
         "utils.py",
-        "model.py"
+        "model.py",
+        "weights.pth"
         ]
 }
