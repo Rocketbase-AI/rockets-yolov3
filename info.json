@@ -1,0 +1,25 @@
+{
+    "builder": "lucas",
+    "model": "yolov3",
+    "family": "image_object_detection",
+    "parent": null,
+    "dataset": "coco80",
+    "isTrainable": false,
+    "isPrivate": false,
+    "blueprint": [
+        "__init__.py",
+        "classes.json",
+        "config.json",
+        "info.json",
+        "layers.py",
+        "model.py",
+        "README.md",
+        "rocket_builder.py",
+        "weights.pth",
+        "utils.py"
+    ],
+    "rocketRepoUrl": "https://gitlab.com/mirage-technologies/rockets/yolov3",
+    "paperUrl": "https://arxiv.org/abs/1804.02767",
+    "originRepoUrl": "https://github.com/eriklindernoren/PyTorch-YOLOv3",
+    "description": "Single Stage Detector using Darkenet53"
+}
