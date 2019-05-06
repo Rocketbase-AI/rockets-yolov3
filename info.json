@@ -1,9 +1,9 @@
 {
-    "builder": "lucas",
-    "model": "yolov3",
+    "username": "lucas",
+    "modelName": "yolov3",
     "family": "image_object_detection",
     "parent": null,
-    "dataset": "coco80",
+    "trainingDataset": "coco80",
     "isTrainable": false,
     "isPrivate": false,
     "blueprint": [
