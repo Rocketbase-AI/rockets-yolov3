@@ -228,7 +228,7 @@ def postprocess(self, detections: torch.Tensor, input_img: Image, visualize: boo
 
     if visualize:
         line_width = 2
-        img_out = input_img
+        img_out = input_img.copy()
         ctx = ImageDraw.Draw(img_out, 'RGBA')
         for detection in list_detections:
             # Extract information from the detection
