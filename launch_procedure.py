@@ -38,5 +38,5 @@ for f in info['blueprint']:
 # Launch the new Rocket
 is_launch_successful = Rocket.launch(rocket_slug + '/' + rocket_hash)
 
-sys.exit(is_launch_successful)
+sys.exit(0)
 
