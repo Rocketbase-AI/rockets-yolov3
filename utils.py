@@ -1,3 +1,4 @@
+from __future__ import division
 import torch
 
 def bbox_iou(box1, box2, x1y1x2y2=True):
