@@ -6,7 +6,7 @@ test:pylint:
         - pylint *.py
 
 launch:rocket:
-    stage: launch
+    stage: deploy
     only:
         refs:
         - master
