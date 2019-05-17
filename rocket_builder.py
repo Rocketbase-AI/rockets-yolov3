@@ -1,3 +1,4 @@
+from __future__ import division
 import os
 from .model import YOLOv3
 import types
