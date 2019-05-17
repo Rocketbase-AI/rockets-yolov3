@@ -1,3 +1,4 @@
+from __future__ import division
 import torch
 
 def bbox_iou(box1, box2, x1y1x2y2=True):
@@ -91,3 +92,13 @@ def non_max_suppression(prediction, num_classes, conf_thres=0.5, nms_thres=0.4):
             )
 
     return output
+
+def clamp(n, minn, maxn):
+    """Make sure n is between minn and maxn
+
+    Args:
+        n (number): Number to clamp
+        minn (number): minimum number allowed
+        maxn (number): maximum number allowed
+    """
+    return max(min(maxn, n), minn)

@@ -1,5 +1,7 @@
 weights*
+rockets/*
 __pycache__
 *.jpg
 .vscode
 .ipynb*
+.venv

@@ -13,7 +13,6 @@
         "info.json",
         "layers.py",
         "model.py",
-        "README.md",
         "rocket_builder.py",
         "weights.pth",
         "utils.py"

@@ -1,0 +1,14 @@
+test:pylint:
+    image: python:3.6
+    script:
+        - pip install rocketbase  pylint --quiet
+        - pylint *.py
+
+launch:rocket:
+    only:
+        refs:
+        - master
+    image: python:3.6
+    script:
+        - pip install rocketbase --quiet
+        - python launch_procedure.py
