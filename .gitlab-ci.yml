@@ -1,10 +1,12 @@
 test:pylint:
+    stage: test
     image: python:3.6
     script:
         - pip install rocketbase  pylint --quiet
         - pylint *.py
 
 launch:rocket:
+    stage: launch
     only:
         refs:
         - master
